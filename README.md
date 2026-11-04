@@ -1,51 +1,95 @@
-# IncidentZero Starter Repository
+# IncidentZero
 
-**Assignment 1 - Agentic Artificial Intelligence (Fall 2026)**  
-**Domain:** bounded autonomous SRE / production-incident response  
+**Assignment 1 - Agentic Artificial Intelligence (Fall 2026)**
+**Domain:** bounded autonomous SRE / production-incident response
 **Mode:** individual assignment, plain Python + Groq SDK, no agent framework
+**Submitted by:** Ayesha Tahir Awan, 25I-7631
 
-This repository deliberately gives you a **working simulated production environment** and an **incomplete agent runtime**. Your job is not to build an API or a dashboard. Your job is to turn the baseline loop into a reliable agent that can observe, plan, act, verify, re-plan, recover from failures, respect human approval, and stop correctly under a strict budget.
+A bounded autonomous incident commander for a local simulated production platform.
+The model proposes; Python authorises. `AgentController` decides whether a proposed
+call is well formed, permitted, affordable, repetitive, approved, stale, retryable
+or terminal, so a model that is wrong or adversarial cannot turn a proposal into an
+unsafe action or a false incident closure.
 
-## Quick start
+The simulator, tool schemas and configuration files under `configs/`,
+`incidentzero/environment/` and `incidentzero/tools/` are the protected starter
+boundary and are unmodified; `python scripts/check_protected_integrity.py` verifies
+this. The agent runtime under `incidentzero/agent/` is the submitted work.
+
+See `REPORT.md` for the engineering report and evaluation, and `AI_USAGE.md` for the
+AI assistance declaration.
+
+## Setup and run commands
+
+
+Requires **Python 3.11+**.
 
 ```bash
-python -m venv .venv
-# Windows: .venv\\Scripts\\activate
-# Linux/macOS: source .venv/bin/activate
+# 1. environment
+python3.11 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env   # Windows CMD
-# cp .env.example .env   # Linux/macOS
+
+# 2. credentials  (the .env file is NOT included in the submission)
+cp .env.example .env               # Windows: copy .env.example .env
+#    then set GROQ_API_KEY=<your own key> inside .env
 ```
 
-Put your own key in `.env` or set `GROQ_API_KEY` in the shell. **Never submit the key.**
+`.env.example` already carries `GROQ_MODEL=openai/gpt-oss-20b` and
+`STUDENT_ID=25I-7631`, so only the key needs filling in. With `STUDENT_ID` set,
+`--student-id` can be omitted from the run commands below.
 
-Generate your deterministic public scenario:
+### Tests, offline, no Groq quota consumed
 
 ```bash
-python scripts/generate_student_scenario.py --student-id 22I-1234 --scenario public-a
+pytest -q tests/public -m infrastructure   # 4 starter infrastructure tests
+pytest -q tests/public                     # 8 public tests, all passing
+pytest -q tests/student                    # 91 student tests, all passing
+pytest -q tests/                           # 99 total
 ```
 
-Validate the protected infrastructure (does not call Groq):
+### Compliance checks
 
 ```bash
-pytest -q tests/public -m infrastructure
-python scripts/check_banned_imports.py
-python scripts/check_protected_integrity.py
+python scripts/check_banned_imports.py     # no agent-framework imports
+python scripts/check_protected_integrity.py # protected files unmodified
+python scripts/count_todos.py              # 0 TODO(A1) markers remaining
 ```
 
-Run the full public test suite while developing:
+### Live runs against Groq
 
 ```bash
-pytest -q tests/public
+python -m incidentzero.cli run --student-id 25I-7631 --scenario public-a
+python -m incidentzero.cli run --student-id 25I-7631 --scenario public-b   # type APPROVE at the prompt
+python -m incidentzero.cli run --student-id 25I-7631 --scenario public-c
 ```
 
-Several student-requirement tests are expected to fail in the untouched starter. They are specifications, not bugs in the simulator.
+Each run prints a live event feed and writes a JSONL trace to
+`traces/25I-7631_<scenario>.jsonl`.
 
-Live run with Groq:
+Useful flags:
 
-```bash
-python -m incidentzero.cli run --student-id 22I-1234 --scenario public-a --model openai/gpt-oss-20b
-```
+| Flag | Effect |
+|---|---|
+| `--approval console` | default, prompts a human for high/critical actions |
+| `--approval approve` | auto-approve, for unattended runs |
+| `--approval deny` | auto-deny, to demonstrate denial handling and re-planning |
+| `--quiet` | suppress the live feed, print only the final outcome |
+| `--model <name>` | override the model (default `openai/gpt-oss-20b`) |
+
+### Included traces
+
+| File | Outcome |
+|---|---|
+| `traces/25I-7631_public-a.jsonl` | resolved, cache corruption, `clear_cache` |
+| `traces/25I-7631_public-b.jsonl` | resolved, bad deploy, approved `rollback_deployment` |
+| `traces/25I-7631_public-c.jsonl` | resolved, capacity spike, `scale_service` |
+| `traces/25I-7631_public-b_approval-denied.jsonl` | escalated, rollback denied, alternatives failed verification |
+
+See `REPORT.md` for the evaluation table and failure analysis, and `AI_USAGE.md` for
+the AI assistance declaration.
+
+---
 
 ## Stable contract
 
